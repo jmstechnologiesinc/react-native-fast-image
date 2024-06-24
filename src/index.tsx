@@ -17,6 +17,9 @@ import {
     ColorValue,
 } from 'react-native'
 
+// Verifica si estamos en la web
+const isWeb = Platform.OS === 'web'
+
 export type ResizeMode = 'contain' | 'cover' | 'stretch' | 'center'
 
 const resizeMode = {
@@ -37,11 +40,8 @@ const priority = {
 type Cache = 'immutable' | 'web' | 'cacheOnly'
 
 const cacheControl = {
-    // Ignore headers, use uri as cache key, fetch only if not in cache.
     immutable: 'immutable',
-    // Respect http headers, no aggressive caching.
     web: 'web',
-    // Only load from cache.
     cacheOnly: 'cacheOnly',
 } as const
 
@@ -96,37 +96,14 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
 
     onLoadEnd?(): void
 
-    /**
-     * onLayout function
-     *
-     * Invoked on mount and layout changes with
-     *
-     * {nativeEvent: { layout: {x, y, width, height}}}.
-     */
     onLayout?: (event: LayoutChangeEvent) => void
 
-    /**
-     *
-     * Style
-     */
     style?: StyleProp<ImageStyle>
-
-    /**
-     * TintColor
-     *
-     * If supplied, changes the color of all the non-transparent pixels to the given color.
-     */
 
     tintColor?: ColorValue
 
-    /**
-     * A unique identifier for this element to be used in UI Automation testing scripts.
-     */
     testID?: string
 
-    /**
-     * Render children within the image.
-     */
     children?: React.ReactNode
 }
 
@@ -137,10 +114,7 @@ const resolveDefaultSource = (
         return null
     }
     if (Platform.OS === 'android') {
-        // Android receives a URI string, and resolves into a Drawable using RN's methods.
-        const resolved = Image.resolveAssetSource(
-            defaultSource as ImageRequireSource,
-        )
+        const resolved = Image.resolveAssetSource(defaultSource as ImageRequireSource)
 
         if (resolved) {
             return resolved.uri
@@ -148,8 +122,6 @@ const resolveDefaultSource = (
 
         return null
     }
-    // iOS or other number mapped assets
-    // In iOS the number is passed, and bridged automatically into a UIImage
     return defaultSource
 }
 
@@ -165,12 +137,11 @@ function FastImageBase({
     style,
     fallback,
     children,
-    // eslint-disable-next-line no-shadow
     resizeMode = 'cover',
     forwardedRef,
     ...props
 }: FastImageProps & { forwardedRef: React.Ref<any> }) {
-    if (fallback) {
+    if (isWeb || fallback) {
         const cleanedSource = { ...(source as any) }
         delete cleanedSource.cache
         const resolvedSource = Image.resolveAssetSource(cleanedSource)
@@ -259,8 +230,7 @@ const styles = StyleSheet.create({
     },
 })
 
-// Types of requireNativeComponent are not correct.
-const FastImageView = (requireNativeComponent as any)(
+const FastImageView = isWeb ? (props: any) => <Image {...props} /> : (requireNativeComponent as any)(
     'FastImageView',
     FastImage,
     {
